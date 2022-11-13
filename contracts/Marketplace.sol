@@ -14,13 +14,12 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// File contracts/NFTEXV3.sol
-
 pragma solidity ^0.8.17;
 
-//https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
+// License to
+// https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
 
-contract NFTEXV3 is ERC721Holder, Ownable {
+contract NFTMARKET is ERC721Holder, Ownable {
     struct Order {
         uint8 orderType; //0:Fixed Price, 1:Dutch Auction, 2:English Auction
         address seller;
