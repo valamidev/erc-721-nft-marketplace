@@ -19,7 +19,7 @@ pragma solidity ^0.8.17;
 // License to
 // https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
 
-contract NFTMARKET is ERC721Holder, Ownable {
+contract RarityHeadMarketplace is ERC721Holder, Ownable {
     struct Order {
         uint8 orderType; //0:Fixed Price, 1:Dutch Auction, 2:English Auction
         address seller;
