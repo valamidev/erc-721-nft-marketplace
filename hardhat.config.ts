@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-gas-reporter";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -10,6 +11,9 @@ const config: HardhatUserConfig = {
         runs: 1000,
       },
     },
+  },
+  gasReporter: {
+    enabled: true,
   },
 };
 
