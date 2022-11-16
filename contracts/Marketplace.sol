@@ -24,7 +24,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         IERC721 token;
         uint256 tokenId;
         uint256 startPrice;
-        uint256 startBlock;
         uint256 endBlock;
         uint256 lastBidPrice;
         address lastBidder;
@@ -32,7 +31,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         bool isCancelled;
     }
 
-    mapping(IERC721 => mapping(uint256 => bytes32[])) public orderIdByToken;
+    mapping(IERC721 => bytes32[]) public orderIdByToken;
     mapping(address => bytes32[]) public orderIdBySeller;
     mapping(bytes32 => Order) public orderInfo;
 
@@ -86,12 +85,12 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         } 
     }
 
-    function tokenOrderLength(IERC721 _token, uint256 _id)
+    function tokenOrderLength(IERC721 _token)
         public
         view
         returns (uint256)
     {
-        return orderIdByToken[_token][_id].length;
+        return orderIdByToken[_token].length;
     }
 
     function sellerOrderLength(address _seller)
@@ -164,14 +163,13 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
             _token,
             _id,
             _startPrice,
-            block.number,
             _endBlock,
             0,
             address(0),
             false,
             false
         );
-        orderIdByToken[_token][_id].push(hash);
+        orderIdByToken[_token].push(hash);
         orderIdBySeller[msg.sender].push(hash);
 
         //check if seller has a right to transfer the NFT token. safeTransferFrom.
