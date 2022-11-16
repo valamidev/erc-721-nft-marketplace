@@ -325,23 +325,25 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         payable(feeAddress).transfer(fee);
     }
 
-    //feeAddress must be either an EOA or a contract must have payable receive fx and doesn't have some codes in that fx.
-    //If not, it might be that it won't be receive any fee.
     function setFeeAddress(address _feeAddress) external onlyOwner {
+        require(_feeAddress != address(this), "Cannot be pointed self");
         feeAddress = _feeAddress;
     }
 
     function setRoyaltyFee(IERC721 _token, uint16 _percent) external onlyOwner {
+        require(_percent >= 0, "Must be positive");
         require(_percent <= 1000, "Input value is more than 10%");
         royaltyFee[_token] = _percent;
     }
 
     function updateFeePercent(uint16 _percent) external onlyOwner {
+        require(_percent >= 0, "Must be positive");
         require(_percent <= 1000, "Input value is more than 10%");
         feePercent = _percent;
     }
 
     function setExtendOnBid(uint16 _value) external onlyOwner {
+        require(_value >= 0, "Must be positive");
         require(_value <= 1000, "Cannot extend more than 1000 block");
         extendOnBid = _value;
     }
