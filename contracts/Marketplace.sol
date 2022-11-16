@@ -33,6 +33,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
 
     mapping(IERC721 => bytes32[]) public orderIdByToken;
     mapping(address => bytes32[]) public orderIdBySeller;
+    mapping(IERC721 => uint16) public royaltyFee;
     mapping(bytes32 => Order) public orderInfo;
 
     address public feeAddress;
@@ -237,11 +238,11 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         require(o.isSold == false, "Already sold");
 
         uint256 currentPrice = getCurrentPrice(_order);
-        require(msg.value != currentPrice, "Price error");
+        require(msg.value == currentPrice, "Price error");
 
         o.isSold = true; //reentrancy proof
 
-        payFee(o.seller, currentPrice);
+        payFee(o.seller, currentPrice, o.token);
  
         o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
 
@@ -276,7 +277,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
 
         o.isSold = true;
 
-        payFee(seller,lastBidPrice);
+        payFee(seller, lastBidPrice, o.token);
 
         token.safeTransferFrom(address(this), lastBidder, tokenId);
 
@@ -313,8 +314,13 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         }
     }
 
-    function payFee(address _seller, uint256 _price) internal {
+    function payFee(address _seller, uint256 _price, IERC721 _token) internal {
         uint256 fee = (_price * feePercent) / 10000;
+
+        if(royaltyFee[_token] > 0){
+            fee = (_price * (feePercent + royaltyFee[_token])) / 10000;
+        }
+
         payable(_seller).transfer(_price - fee);
         payable(feeAddress).transfer(fee);
     }
@@ -323,6 +329,11 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
     //If not, it might be that it won't be receive any fee.
     function setFeeAddress(address _feeAddress) external onlyOwner {
         feeAddress = _feeAddress;
+    }
+
+    function setRoyaltyFee(IERC721 _token, uint16 _percent) external onlyOwner {
+        require(_percent <= 1000, "Input value is more than 10%");
+        royaltyFee[_token] = _percent;
     }
 
     function updateFeePercent(uint16 _percent) external onlyOwner {

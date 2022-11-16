@@ -18,6 +18,8 @@ describe.only("Marketplace", function () {
   ) {
     let bn = await ethers.provider.getBlockNumber();
 
+    console.log("Block", bn);
+
     let hash = await ethers.utils.solidityKeccak256(
       ["uint256", "address", "uint256", "address"],
       [blocknumber ?? bn, tokenAddress, id, ownerAddress]
@@ -195,6 +197,32 @@ describe.only("Marketplace", function () {
 
       expect(getOrderAfterCancel.isSold).to.equal(false);
       expect(getOrderAfterCancel.isCancelled).to.equal(true);
+    });
+  });
+
+  describe("Royalty Fees", function () {
+    it("Deduct Royalty fee", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      // Get listed
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+
+      await marketplace
+        .connect(account1)
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+
+      const orderHash = _hash(nftToken.address, 1, account1.address, 8);
+
+      await marketplace.connect(owner).setRoyaltyFee(nftToken.address, 900);
+
+      const balanceBeforeBuy = await account1.getBalance();
+
+      await marketplace.connect(account2).buy(orderHash, { value: 10 ** 5 });
+
+      const balanceAfterBuy = await account1.getBalance();
+
+      expect(balanceAfterBuy.sub(balanceBeforeBuy)).to.equal(10 ** 5 * 0.9);
     });
   });
 });
