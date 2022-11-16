@@ -119,7 +119,9 @@ describe.only("Marketplace", function () {
       // Get listed
       await nftToken.connect(account1).approve(marketplace.address, 1);
 
-      await marketplace.connect(account1).auction(nftToken.address, 1, 50, 350);
+      await marketplace
+        .connect(account1)
+        .auction(nftToken.address, 1, 10 ** 5, 350);
 
       const orderHash = _hash(nftToken.address, 1, account1.address, 8);
 
@@ -134,26 +136,28 @@ describe.only("Marketplace", function () {
         marketplace.connect(account2).bid(orderHash, { value: 1 })
       ).to.be.revertedWith("low price bid");
 
-      await marketplace.connect(account2).bid(orderHash, { value: 50 });
+      await marketplace.connect(account2).bid(orderHash, { value: 10 ** 5 });
 
       await expect(
         marketplace.connect(account2).claim(orderHash)
       ).to.be.revertedWith("Auction has not ended");
 
       await expect(
-        marketplace.connect(account2).bid(orderHash, { value: 51 })
+        marketplace.connect(account2).bid(orderHash, { value: 10 ** 5 + 1 })
       ).to.be.revertedWith("low price bid");
 
-      await marketplace.connect(account2).bid(orderHash, { value: 55 });
+      await marketplace.connect(account2).bid(orderHash, { value: 10 ** 6 });
 
       const getOrderAfterBid = await marketplace.orderInfo(orderHash);
 
       expect(getOrderAfterBid.orderType).to.equal(1);
-      expect(getOrderAfterBid.lastBidPrice).to.equal(55);
+      expect(getOrderAfterBid.lastBidPrice).to.equal(10 ** 6);
 
       // Claim as winner
 
       await advanceBlockTo(351);
+
+      const balanceBeforeClaim = await account1.getBalance();
 
       await marketplace.connect(account2).claim(orderHash);
 
@@ -163,8 +167,13 @@ describe.only("Marketplace", function () {
 
       const getOrderAfterExpire = await marketplace.orderInfo(orderHash);
 
+      const balanceAfterClaim = await account1.getBalance();
+
       expect(getOrderAfterExpire.isSold).to.equal(true);
-      expect(getOrderAfterExpire.lastBidPrice).to.equal(55);
+      expect(getOrderAfterExpire.lastBidPrice).to.equal(10 ** 6);
+      expect(balanceAfterClaim.sub(balanceBeforeClaim)).to.equal(
+        10 ** 6 * 0.99
+      );
     });
   });
 
