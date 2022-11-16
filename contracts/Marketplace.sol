@@ -21,12 +21,11 @@ pragma solidity ^0.8.17;
 
 contract RarityHeadMarketplace is ERC721Holder, Ownable {
     struct Order {
-        uint8 orderType; //0:Fixed Price, 1:Dutch Auction, 2:English Auction
+        uint8 orderType; //0:Fixed Price, 1:English Auction
         address seller;
         IERC721 token;
         uint256 tokenId;
         uint256 startPrice;
-        uint256 endPrice;
         uint256 startBlock;
         uint256 endBlock;
         uint256 lastBidPrice;
@@ -41,6 +40,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
 
     address public feeAddress;
     uint16 public feePercent;
+    uint16 public extendOnBid;
 
     event MakeOrder(
         IERC721 indexed token,
@@ -70,10 +70,10 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint256 price
     );
 
-    constructor(uint16 _feePercent) {
-        require(_feePercent <= 1000, "Input value is more than 10%");
+    constructor() {
         feeAddress = msg.sender;
-        feePercent = _feePercent;
+        feePercent = 100; // Fee 1%
+        extendOnBid = 50; // Auction expiry extend with 50 blocks by default
     }
 
     // view fx
@@ -82,16 +82,10 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint8 orderType = o.orderType;
         if (orderType == 0) {
             return o.startPrice;
-        } else if (orderType == 2) {
+        } else {
             uint256 lastBidPrice = o.lastBidPrice;
             return lastBidPrice == 0 ? o.startPrice : lastBidPrice;
-        } else {
-            uint256 _startPrice = o.startPrice;
-            uint256 _startBlock = o.startBlock;
-            uint256 tickPerBlock = (_startPrice - o.endPrice) /
-                (o.endBlock - _startBlock);
-            return _startPrice - ((block.number - _startBlock) * tickPerBlock);
-        }
+        } 
     }
 
     function tokenOrderLength(IERC721 _token, uint256 _id)
@@ -114,7 +108,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         IERC721 _token,
         uint256[] memory _ids,
         uint256 _startPrice,
-        uint256 _endPrice,
         uint256 _endBlock,
         uint256 _type
     ) public {
@@ -122,51 +115,26 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
 
         if (_type == 0) {
             for (uint256 i = 0; i < _ids.length; i++) {
-                _makeOrder(0, _token, _ids[i], _startPrice, 0, _endBlock);
-            }
-        }
-
-        if (_type == 1) {
-            require(_startPrice > _endPrice, "End price higher than start");
-            for (uint256 i = 0; i < _ids.length; i++) {
-                _makeOrder(
-                    1,
-                    _token,
-                    _ids[i],
-                    _startPrice,
-                    _endPrice,
-                    _endBlock
-                );
+                _makeOrder(0, _token, _ids[i], _startPrice, _endBlock);
             }
         }
 
         if (_type == 2) {
             for (uint256 i = 0; i < _ids.length; i++) {
-                _makeOrder(2, _token, _ids[i], _startPrice, 0, _endBlock);
+                _makeOrder(2, _token, _ids[i], _startPrice, _endBlock);
             }
         }
     }
 
     // make order fx
     //0:Fixed Price, 1:Dutch Auction, 2:English Auction
-    function dutchAuction(
-        IERC721 _token,
-        uint256 _id,
-        uint256 _startPrice,
-        uint256 _endPrice,
-        uint256 _endBlock
-    ) public {
-        require(_startPrice > _endPrice, "End price higher than start");
-        _makeOrder(1, _token, _id, _startPrice, _endPrice, _endBlock);
-    } //sp != ep
-
     function englishAuction(
         IERC721 _token,
         uint256 _id,
         uint256 _startPrice,
         uint256 _endBlock
     ) public {
-        _makeOrder(2, _token, _id, _startPrice, 0, _endBlock);
+        _makeOrder(1, _token, _id, _startPrice, _endBlock);
     } //ep=0. for gas saving.
 
     function fixedPrice(
@@ -175,7 +143,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint256 _price,
         uint256 _endBlock
     ) public {
-        _makeOrder(0, _token, _id, _price, 0, _endBlock);
+        _makeOrder(0, _token, _id, _price,  _endBlock);
     } //ep=0. for gas saving.
 
     function _makeOrder(
@@ -183,7 +151,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         IERC721 _token,
         uint256 _id,
         uint256 _startPrice,
-        uint256 _endPrice,
         uint256 _endBlock
     ) internal {
         require(_endBlock > block.number, "Duration must be more than zero");
@@ -196,7 +163,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
             _token,
             _id,
             _startPrice,
-            _endPrice,
             block.number,
             _endBlock,
             0,
@@ -237,7 +203,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint256 lastBidPrice = o.lastBidPrice;
         address lastBidder = o.lastBidder;
 
-        require(o.orderType == 2, "only for English Auction");
+        require(o.orderType == 1, "only for English Auction");
         require(o.isCancelled == false, "Canceled order");
         require(block.number <= endBlock, "Auction has ended");
         require(o.seller != msg.sender, "Can not bid on your own order");
@@ -254,9 +220,8 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
             );
         }
 
-        if (block.number > endBlock - 150) {
-            // 150 blocks = 5 mins on dogechain.
-            o.endBlock = endBlock + 150;
+        if (block.number > endBlock - extendOnBid) {
+            o.endBlock = endBlock + extendOnBid;
         }
 
         o.lastBidder = msg.sender;
@@ -274,8 +239,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint256 endBlock = o.endBlock;
         require(endBlock != 0, "Canceled order");
         require(o.isCancelled == false, "Canceled order");
-        require(endBlock > block.number, "Auction has ended");
-        require(o.orderType < 2, "It's a English Auction");
+        require(o.orderType == 0, "It's a English Auction");
         require(o.isSold == false, "Already sold");
 
         uint256 currentPrice = getCurrentPrice(_order);
@@ -314,7 +278,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
             seller == msg.sender || lastBidder == msg.sender,
             "Access denied"
         );
-        require(o.orderType == 2, "English Auction only");
+        require(o.orderType == 1, "English Auction only");
         require(block.number > o.endBlock, "Auction has not ended");
 
         IERC721 token = o.token;
@@ -372,5 +336,10 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
     function updateFeePercent(uint16 _percent) external onlyOwner {
         require(_percent <= 1000, "Input value is more than 10%");
         feePercent = _percent;
+    }
+
+    function setExtendOnBid(uint16 _value) external onlyOwner {
+        require(_value <= 1000, "Cannot extend more than 1000 block");
+        extendOnBid = _value;
     }
 }
