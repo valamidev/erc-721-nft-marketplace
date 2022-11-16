@@ -190,11 +190,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
     // take order fx
     // you have to pay only BCH for bidding and buying.
 
-    // In this contract, since send function is used instead of transfer or low-level call function,
-    // if a participant is a contract, it must have receive payable function.
-    // But if it has some code in either receive or fallback fx, they might not be able to receive their BCH.
-    // Even though some contracts can't receive their BCH, the transaction won't be failed.
-
     // Bids must be at least 5% higher than the previous bid.
     // If someone bids in the last 5 minutes of an auction, the auction will automatically extend by 5 minutes.
     function bid(bytes32 _order) external payable {
