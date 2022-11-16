@@ -2,7 +2,8 @@
   "name": "hardhat-project",
   "scripts": {
     "start": "hardhat",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "build": "npx hardhat flatten ./contracts/Marketplace.sol > ./build/Marketplace.sol"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",

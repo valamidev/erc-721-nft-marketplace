@@ -14,8 +14,6 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-pragma solidity ^0.8.17;
-
 // License to
 // https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
 
