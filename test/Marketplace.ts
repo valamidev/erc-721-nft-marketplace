@@ -10,6 +10,21 @@ describe.only("Marketplace", function () {
     }
   }
 
+  async function _hash(
+    tokenAddress: string,
+    id: number,
+    ownerAddress: string,
+    blocknumber?: number
+  ) {
+    let bn = await ethers.provider.getBlockNumber();
+
+    let hash = await ethers.utils.solidityKeccak256(
+      ["uint256", "address", "uint256", "address"],
+      [blocknumber ?? bn, tokenAddress, id, ownerAddress]
+    );
+    return hash;
+  }
+
   async function advanceBlock() {
     return ethers.provider.send("evm_mine", []);
   }
@@ -66,19 +81,111 @@ describe.only("Marketplace", function () {
   });
 
   describe("Create listing", function () {
-    it("Should set fee address", async function () {
+    it("Create Auction Listing", async function () {
       const { marketplace, nftToken, owner, account1, account2 } =
         await loadFixture(deployContract);
 
       await nftToken.connect(account1).approve(marketplace.address, 1);
+      await nftToken.connect(account2).approve(marketplace.address, 11);
 
-      const result = await marketplace
+      await marketplace
         .connect(account1)
         .fixedPrice(nftToken.address, 1, 50, 350);
 
-      console.log(result);
+      const hash1 = _hash(nftToken.address, 1, account1.address, 9);
 
-      expect(true).to.equal(true);
+      await marketplace
+        .connect(account2)
+        .fixedPrice(nftToken.address, 11, 50, 350);
+
+      const hash2 = _hash(nftToken.address, 11, account2.address, 10);
+
+      const getOrder1 = await marketplace.orderInfo(hash1);
+      const getOrder2 = await marketplace.orderInfo(hash2);
+
+      expect(getOrder1.orderType).to.equal(0);
+      expect(getOrder2.orderType).to.equal(0);
+
+      expect(getOrder1.seller).to.equal(account1.address);
+      expect(getOrder2.seller).to.equal(account2.address);
+    });
+  });
+
+  describe("Buy / Win auction", function () {
+    it("Buy / Win auction", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      // Get listed
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+
+      await marketplace.connect(account1).auction(nftToken.address, 1, 50, 350);
+
+      const orderHash = _hash(nftToken.address, 1, account1.address, 8);
+
+      const getOrderListed = await marketplace.orderInfo(orderHash);
+
+      expect(getOrderListed.orderType).to.equal(1);
+
+      expect(getOrderListed.seller).to.equal(account1.address);
+
+      // Create bid as buyer
+      await expect(
+        marketplace.connect(account2).bid(orderHash, { value: 1 })
+      ).to.be.revertedWith("low price bid");
+
+      await marketplace.connect(account2).bid(orderHash, { value: 50 });
+
+      await expect(
+        marketplace.connect(account2).claim(orderHash)
+      ).to.be.revertedWith("Auction has not ended");
+
+      await expect(
+        marketplace.connect(account2).bid(orderHash, { value: 51 })
+      ).to.be.revertedWith("low price bid");
+
+      await marketplace.connect(account2).bid(orderHash, { value: 55 });
+
+      const getOrderAfterBid = await marketplace.orderInfo(orderHash);
+
+      expect(getOrderAfterBid.orderType).to.equal(1);
+      expect(getOrderAfterBid.lastBidPrice).to.equal(55);
+
+      // Claim as winner
+
+      await advanceBlockTo(351);
+
+      await marketplace.connect(account2).claim(orderHash);
+
+      await expect(
+        marketplace.connect(account2).claim(orderHash)
+      ).to.be.revertedWith("Already sold");
+
+      const getOrderAfterExpire = await marketplace.orderInfo(orderHash);
+
+      expect(getOrderAfterExpire.isSold).to.equal(true);
+      expect(getOrderAfterExpire.lastBidPrice).to.equal(55);
+    });
+  });
+
+  describe("Cancel auction", function () {
+    it("Cancel auction", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      // Get listed
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+
+      await marketplace.connect(account1).auction(nftToken.address, 1, 50, 350);
+
+      const orderHash = _hash(nftToken.address, 1, account1.address, 8);
+
+      await marketplace.connect(account1).cancelOrder(orderHash);
+
+      const getOrderAfterCancel = await marketplace.orderInfo(orderHash);
+
+      expect(getOrderAfterCancel.isSold).to.equal(false);
+      expect(getOrderAfterCancel.isCancelled).to.equal(true);
     });
   });
 });

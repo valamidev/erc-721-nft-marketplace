@@ -125,15 +125,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
     }
 
     // make order fx
-    //0:Fixed Price, 1:Dutch Auction, 2:English Auction
-    function englishAuction(
-        IERC721 _token,
-        uint256 _id,
-        uint256 _startPrice,
-        uint256 _endBlock
-    ) public {
-        _makeOrder(1, _token, _id, _startPrice, _endBlock);
-    } //ep=0. for gas saving.
+    //0:Fixed Price, 1:English Auction
 
     function fixedPrice(
         IERC721 _token,
@@ -143,6 +135,17 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
     ) public {
         _makeOrder(0, _token, _id, _price,  _endBlock);
     } //ep=0. for gas saving.
+
+    function auction(
+        IERC721 _token,
+        uint256 _id,
+        uint256 _startPrice,
+        uint256 _endBlock
+    ) public {
+        _makeOrder(1, _token, _id, _startPrice, _endBlock);
+    } //ep=0. for gas saving.
+
+
 
     function _makeOrder(
         uint8 _orderType,
@@ -203,9 +206,9 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
 
         if (lastBidPrice != 0) {
             require(
-                msg.value >= lastBidPrice + (lastBidPrice / 20),
+                msg.value >= lastBidPrice + (lastBidPrice / 20), // 5%
                 "low price bid"
-            ); //5%
+            ); 
         } else {
             require(
                 msg.value >= o.startPrice && msg.value > 0,
@@ -227,26 +230,21 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         emit Bid(o.token, o.tokenId, _order, msg.sender, msg.value);
     }
 
-    function buyItNow(bytes32 _order) external payable {
+    function buy(bytes32 _order) external payable {
         Order storage o = orderInfo[_order];
         uint256 endBlock = o.endBlock;
-        require(endBlock != 0, "Canceled order");
+        require(block.number <= endBlock, "Listing has ended");
         require(o.isCancelled == false, "Canceled order");
         require(o.orderType == 0, "It's a English Auction");
         require(o.isSold == false, "Already sold");
 
         uint256 currentPrice = getCurrentPrice(_order);
-        require(msg.value >= currentPrice, "Price error");
+        require(msg.value != currentPrice, "Price error");
 
         o.isSold = true; //reentrancy proof
 
-        uint256 fee = (currentPrice * feePercent) / 10000;
-        payable(o.seller).transfer(currentPrice - fee);
-        payable(feeAddress).transfer(fee);
-        if (msg.value > currentPrice) {
-            payable(msg.sender).transfer(msg.value - currentPrice);
-        }
-
+        payFee(o.seller, currentPrice);
+ 
         o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
 
         emit Claim(
@@ -278,12 +276,10 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint256 tokenId = o.tokenId;
         uint256 lastBidPrice = o.lastBidPrice;
 
-        uint256 fee = (lastBidPrice * feePercent) / 10000;
-
         o.isSold = true;
 
-        payable(seller).transfer(lastBidPrice - fee);
-        payable(feeAddress).transfer(fee);
+        payFee(seller,lastBidPrice);
+
         token.safeTransferFrom(address(this), lastBidder, tokenId);
 
         emit Claim(token, tokenId, _order, seller, lastBidder, lastBidPrice);
@@ -306,7 +302,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         IERC721 token = o.token;
         uint256 tokenId = o.tokenId;
 
-        o.endBlock = 0; //0 endBlock means the order was canceled. - retained for backwards compatibility
         o.isCancelled = true;
 
         token.safeTransferFrom(address(this), msg.sender, tokenId);
@@ -318,6 +313,12 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         for (uint256 i = 0; i < _ids.length; i++) {
             cancelOrder(_ids[i]);
         }
+    }
+
+    function payFee(address _seller, uint256 _price) internal {
+        uint256 fee = (_price * feePercent) / 10000;
+        payable(_seller).transfer(_price - fee);
+        payable(feeAddress).transfer(fee);
     }
 
     //feeAddress must be either an EOA or a contract must have payable receive fx and doesn't have some codes in that fx.
