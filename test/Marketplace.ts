@@ -250,4 +250,24 @@ describe.only("Marketplace", function () {
       expect(balanceAfterBuy.sub(balanceBeforeBuy)).to.equal(10 ** 5);
     });
   });
+
+  describe("Get CurrentPrice", function () {
+    it("Get price", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      // Get listed
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+
+      await marketplace
+        .connect(account1)
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+
+      const orderHash = _hash(nftToken.address, 1, account1.address, 8);
+
+      const price = await marketplace.connect(owner).getCurrentPrice(orderHash);
+
+      expect(price).to.equal(10 ** 5);
+    });
+  });
 });
