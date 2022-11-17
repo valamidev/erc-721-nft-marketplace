@@ -347,4 +347,14 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         require(_value <= 1000, "Cannot extend more than 1000 block");
         extendOnBid = _value;
     }
+
+    // Function to receive Ether. msg.data must be empty
+    receive() external payable {
+        payable(feeAddress).transfer(msg.value);
+    }
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable {
+        payable(feeAddress).transfer(msg.value);
+    }
 }
