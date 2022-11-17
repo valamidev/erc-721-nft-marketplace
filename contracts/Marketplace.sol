@@ -314,7 +314,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         }
     }
 
-    function payFee(address _seller, uint256 _price, IERC721 _token) internal {
+    function payFee(address _seller, uint256 _price, IERC721 _token) private {
         uint256 fee = (_price * feePercent) / 10000;
 
         if(royaltyFee[_token] > 0){
