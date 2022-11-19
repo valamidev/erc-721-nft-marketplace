@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 import "@openzeppelin/contracts/utils/Context.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -17,7 +19,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // License to
 // https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
 
-contract RarityHeadMarketplace is ERC721Holder, Ownable {
+contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
     struct Order {
         uint8 orderType; //0:Fixed Price, 1:English Auction
         address seller;
@@ -187,9 +189,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         return keccak256(abi.encodePacked(block.number, _token, _id, _seller));
     }
 
-    // take order fx
-    // you have to pay only BCH for bidding and buying.
-
     // Bids must be at least 5% higher than the previous bid.
     // If someone bids in the last 5 minutes of an auction, the auction will automatically extend by 5 minutes.
     function bid(bytes32 _order) external payable {
@@ -256,8 +255,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         );
     }
 
-    // both seller and taker can call this fx in English Auction. Probably the taker(last bidder) might call this fx.
-    // In both DA and FP, buyItNow fx include claim fx.
     function claim(bytes32 _order) public {
         Order storage o = orderInfo[_order];
         address seller = o.seller;
@@ -284,7 +281,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         emit Claim(token, tokenId, _order, seller, lastBidder, lastBidPrice);
     }
 
-    function bulkClaim(bytes32[] memory _ids) public {
+    function bulkClaim(bytes32[] memory _ids) public nonReentrant {
         require(_ids.length > 0, "At least 1 ID must be supplied");
         for (uint256 i = 0; i < _ids.length; i++) {
             claim(_ids[i]);
@@ -307,7 +304,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         emit CancelOrder(token, tokenId, _order, msg.sender);
     }
 
-    function bulkCancel(bytes32[] memory _ids) public {
+    function bulkCancel(bytes32[] memory _ids) public nonReentrant {
         require(_ids.length > 0, "At least 1 ID must be supplied");
         for (uint256 i = 0; i < _ids.length; i++) {
             cancelOrder(_ids[i]);
