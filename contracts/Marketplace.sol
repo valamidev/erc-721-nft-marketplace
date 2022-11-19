@@ -222,7 +222,8 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         o.lastBidPrice = msg.value;
 
         if (lastBidPrice != 0) {
-            payable(lastBidder).transfer(lastBidPrice);
+            (bool sent, ) = payable(lastBidder).call{value: lastBidPrice}("");
+            require(sent, "Failed to send Ether");
         }
 
         emit Bid(o.token, o.tokenId, _order, msg.sender, msg.value);
@@ -318,8 +319,10 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
             fee = (_price * (feePercent + royaltyFee[_token])) / 10000;
         }
 
-        payable(_seller).transfer(_price - fee);
-        payable(feeAddress).transfer(fee);
+        (bool sentToSeller, ) = payable(_seller).call{value: _price - fee}("");
+         require(sentToSeller, "Failed to send Ether");
+        (bool sentFee, ) = payable(feeAddress).call{value: fee}("");
+         require(sentFee, "Failed to send Ether");
     }
 
     function setFeeAddress(address _feeAddress) external onlyOwner {
@@ -346,12 +349,12 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
     }
 
     // Function to receive Ether. msg.data must be empty
-    receive() external payable {
+    receive() external payable nonReentrant {
         payable(feeAddress).transfer(msg.value);
     }
 
     // Fallback function is called when msg.data is not empty
-    fallback() external payable {
+    fallback() external payable nonReentrant {
         payable(feeAddress).transfer(msg.value);
     }
 }
