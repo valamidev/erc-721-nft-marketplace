@@ -128,7 +128,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 
     // make order fx
     //0:Fixed Price, 1:English Auction
-
     function fixedPrice(
         IERC721 _token,
         uint256 _id,
@@ -155,7 +154,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _id,
         uint256 _startPrice,
         uint256 _endBlock
-    ) internal {
+    ) internal nonReentrant {
         require(_endBlock > block.number, "Duration must be more than zero");
 
         //push
