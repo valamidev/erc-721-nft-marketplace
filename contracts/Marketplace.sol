@@ -324,6 +324,24 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
          require(sentFee, "Failed to send Ether to Fee collector");
     }
 
+    // This method required in case a Contract disable transfering for any reason!
+    // The token will stuck forever in the contract, only for emergency!
+    function emergencyCancelOrder(bytes32 _order) external onlyOwner nonReentrant{
+        Order storage o = orderInfo[_order];
+        address lastBidder = o.lastBidder;
+        uint256 lastBidPrice = o.lastBidPrice;
+        uint256 endBlock = o.endBlock + 1000; // At least 1000 block should passed, to avoid any backdoor
+        require(lastBidPrice != 0, "Bidding exist");
+        require(o.isSold == false, "Already sold");
+        require(o.isCancelled == false, "Already cancelled");
+        require(block.number >= endBlock, "Listing has ended");
+   
+        o.isCancelled = true;
+
+        (bool sent, ) = payable(lastBidder).call{value: lastBidPrice}("");
+        require(sent, "Failed to send Ether on outbid");
+    }
+
     function setFeeAddress(address _feeAddress) external onlyOwner {
         require(_feeAddress != address(this), "Cannot be pointed self");
         feeAddress = _feeAddress;
