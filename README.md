@@ -11,3 +11,11 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat run scripts/deploy.ts
 ```
+
+Deployed
+
+```
+
+Doge Testnet => 0x0aa2037E40a78A169B5214418D66377ab828cb23
+
+```
