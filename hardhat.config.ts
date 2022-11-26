@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+require("hardhat-abi-exporter");
 import "hardhat-gas-reporter";
 
 const config: HardhatUserConfig = {
@@ -14,6 +15,10 @@ const config: HardhatUserConfig = {
   },
   gasReporter: {
     enabled: true,
+  },
+  abiExporter: {
+    path: "./abi/pretty",
+    format: "fullName",
   },
 };
 

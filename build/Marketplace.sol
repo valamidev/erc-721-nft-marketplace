@@ -1,5 +1,78 @@
 // Sources flattened with hardhat v2.12.2 https://hardhat.org
 
+// File @openzeppelin/contracts/security/ReentrancyGuard.sol@v4.8.0
+
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.8.0) (security/ReentrancyGuard.sol)
+
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Contract module that helps prevent reentrant calls to a function.
+ *
+ * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
+ * available, which can be applied to functions to make sure there are no nested
+ * (reentrant) calls to them.
+ *
+ * Note that because there is a single `nonReentrant` guard, functions marked as
+ * `nonReentrant` may not call one another. This can be worked around by making
+ * those functions `private`, and then adding `external` `nonReentrant` entry
+ * points to them.
+ *
+ * TIP: If you would like to learn more about reentrancy and alternative ways
+ * to protect against it, check out our blog post
+ * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
+ */
+abstract contract ReentrancyGuard {
+    // Booleans are more expensive than uint256 or any type that takes up a full
+    // word because each write operation emits an extra SLOAD to first read the
+    // slot's contents, replace the bits taken up by the boolean, and then write
+    // back. This is the compiler's defense against contract upgrades and
+    // pointer aliasing, and it cannot be disabled.
+
+    // The values being non-zero value makes deployment a bit more expensive,
+    // but in exchange the refund on every call to nonReentrant will be lower in
+    // amount. Since refunds are capped to a percentage of the total
+    // transaction's gas, it is best to keep them low in cases like this one, to
+    // increase the likelihood of the full refund coming into effect.
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and making it call a
+     * `private` function that does the actual work.
+     */
+    modifier nonReentrant() {
+        _nonReentrantBefore();
+        _;
+        _nonReentrantAfter();
+    }
+
+    function _nonReentrantBefore() private {
+        // On the first call to nonReentrant, _status will be _NOT_ENTERED
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+    }
+
+    function _nonReentrantAfter() private {
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
+    }
+}
+
+
 // File @openzeppelin/contracts/utils/Context.sol@v4.8.0
 
 // SPDX-License-Identifier: MIT
@@ -352,20 +425,17 @@ contract ERC721Holder is IERC721Receiver {
 
 // File contracts/Marketplace.sol
 
-// SPDX-License-Identifier: MIT
-
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.7;
 // License to
 // https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
 
-contract RarityHeadMarketplace is ERC721Holder, Ownable {
+contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
     struct Order {
         uint8 orderType; //0:Fixed Price, 1:English Auction
         address seller;
         IERC721 token;
         uint256 tokenId;
         uint256 startPrice;
-        uint256 startBlock;
         uint256 endBlock;
         uint256 lastBidPrice;
         address lastBidder;
@@ -373,8 +443,9 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         bool isCancelled;
     }
 
-    mapping(IERC721 => mapping(uint256 => bytes32[])) public orderIdByToken;
+    mapping(IERC721 => bytes32[]) public orderIdByToken;
     mapping(address => bytes32[]) public orderIdBySeller;
+    mapping(IERC721 => uint16) public royaltyFee;
     mapping(bytes32 => Order) public orderInfo;
 
     address public feeAddress;
@@ -427,12 +498,12 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         } 
     }
 
-    function tokenOrderLength(IERC721 _token, uint256 _id)
+    function tokenOrderLength(IERC721 _token)
         public
         view
         returns (uint256)
     {
-        return orderIdByToken[_token][_id].length;
+        return orderIdByToken[_token].length;
     }
 
     function sellerOrderLength(address _seller)
@@ -466,16 +537,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
     }
 
     // make order fx
-    //0:Fixed Price, 1:Dutch Auction, 2:English Auction
-    function englishAuction(
-        IERC721 _token,
-        uint256 _id,
-        uint256 _startPrice,
-        uint256 _endBlock
-    ) public {
-        _makeOrder(1, _token, _id, _startPrice, _endBlock);
-    } //ep=0. for gas saving.
-
+    //0:Fixed Price, 1:English Auction
     function fixedPrice(
         IERC721 _token,
         uint256 _id,
@@ -485,13 +547,24 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         _makeOrder(0, _token, _id, _price,  _endBlock);
     } //ep=0. for gas saving.
 
+    function auction(
+        IERC721 _token,
+        uint256 _id,
+        uint256 _startPrice,
+        uint256 _endBlock
+    ) public {
+        _makeOrder(1, _token, _id, _startPrice, _endBlock);
+    } //ep=0. for gas saving.
+
+
+
     function _makeOrder(
         uint8 _orderType,
         IERC721 _token,
         uint256 _id,
         uint256 _startPrice,
         uint256 _endBlock
-    ) internal {
+    ) internal nonReentrant {
         require(_endBlock > block.number, "Duration must be more than zero");
 
         //push
@@ -502,14 +575,13 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
             _token,
             _id,
             _startPrice,
-            block.number,
             _endBlock,
             0,
             address(0),
             false,
             false
         );
-        orderIdByToken[_token][_id].push(hash);
+        orderIdByToken[_token].push(hash);
         orderIdBySeller[msg.sender].push(hash);
 
         //check if seller has a right to transfer the NFT token. safeTransferFrom.
@@ -526,9 +598,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         return keccak256(abi.encodePacked(block.number, _token, _id, _seller));
     }
 
-    // take order fx
-    // you have to pay only BCH for bidding and buying.
-
     // Bids must be at least 5% higher than the previous bid.
     // If someone bids in the last 5 minutes of an auction, the auction will automatically extend by 5 minutes.
     function bid(bytes32 _order) external payable {
@@ -544,9 +613,9 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
 
         if (lastBidPrice != 0) {
             require(
-                msg.value >= lastBidPrice + (lastBidPrice / 20),
+                msg.value >= lastBidPrice + (lastBidPrice / 20), // 5%
                 "low price bid"
-            ); //5%
+            ); 
         } else {
             require(
                 msg.value >= o.startPrice && msg.value > 0,
@@ -562,32 +631,28 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         o.lastBidPrice = msg.value;
 
         if (lastBidPrice != 0) {
-            payable(lastBidder).transfer(lastBidPrice);
+            (bool sent, ) = payable(lastBidder).call{value: lastBidPrice}("");
+            require(sent, "Failed to send Ether on outbid");
         }
 
         emit Bid(o.token, o.tokenId, _order, msg.sender, msg.value);
     }
 
-    function buyItNow(bytes32 _order) external payable {
+    function buy(bytes32 _order) external payable {
         Order storage o = orderInfo[_order];
         uint256 endBlock = o.endBlock;
-        require(endBlock != 0, "Canceled order");
+        require(block.number <= endBlock, "Listing has ended");
         require(o.isCancelled == false, "Canceled order");
         require(o.orderType == 0, "It's a English Auction");
         require(o.isSold == false, "Already sold");
 
         uint256 currentPrice = getCurrentPrice(_order);
-        require(msg.value >= currentPrice, "Price error");
+        require(msg.value == currentPrice, "Price error");
 
         o.isSold = true; //reentrancy proof
 
-        uint256 fee = (currentPrice * feePercent) / 10000;
-        payable(o.seller).transfer(currentPrice - fee);
-        payable(feeAddress).transfer(fee);
-        if (msg.value > currentPrice) {
-            payable(msg.sender).transfer(msg.value - currentPrice);
-        }
-
+        payFee(o.seller, currentPrice, o.token);
+ 
         o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
 
         emit Claim(
@@ -600,8 +665,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         );
     }
 
-    // both seller and taker can call this fx in English Auction. Probably the taker(last bidder) might call this fx.
-    // In both DA and FP, buyItNow fx include claim fx.
     function claim(bytes32 _order) public {
         Order storage o = orderInfo[_order];
         address seller = o.seller;
@@ -619,18 +682,16 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         uint256 tokenId = o.tokenId;
         uint256 lastBidPrice = o.lastBidPrice;
 
-        uint256 fee = (lastBidPrice * feePercent) / 10000;
-
         o.isSold = true;
 
-        payable(seller).transfer(lastBidPrice - fee);
-        payable(feeAddress).transfer(fee);
+        payFee(seller, lastBidPrice, o.token);
+
         token.safeTransferFrom(address(this), lastBidder, tokenId);
 
         emit Claim(token, tokenId, _order, seller, lastBidder, lastBidPrice);
     }
 
-    function bulkClaim(bytes32[] memory _ids) public {
+    function bulkClaim(bytes32[] memory _ids) public nonReentrant {
         require(_ids.length > 0, "At least 1 ID must be supplied");
         for (uint256 i = 0; i < _ids.length; i++) {
             claim(_ids[i]);
@@ -647,33 +708,90 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable {
         IERC721 token = o.token;
         uint256 tokenId = o.tokenId;
 
-        o.endBlock = 0; //0 endBlock means the order was canceled. - retained for backwards compatibility
         o.isCancelled = true;
 
         token.safeTransferFrom(address(this), msg.sender, tokenId);
         emit CancelOrder(token, tokenId, _order, msg.sender);
     }
 
-    function bulkCancel(bytes32[] memory _ids) public {
+    function bulkCancel(bytes32[] memory _ids) public nonReentrant {
         require(_ids.length > 0, "At least 1 ID must be supplied");
         for (uint256 i = 0; i < _ids.length; i++) {
             cancelOrder(_ids[i]);
         }
     }
 
-    //feeAddress must be either an EOA or a contract must have payable receive fx and doesn't have some codes in that fx.
-    //If not, it might be that it won't be receive any fee.
+    function payFee(address _seller, uint256 _price, IERC721 _token) private {
+        uint256 fee = (_price * feePercent) / 10000;
+
+        if(royaltyFee[_token] > 0){
+            fee = (_price * (feePercent + royaltyFee[_token])) / 10000;
+        }
+
+        (bool sentToSeller, ) = payable(_seller).call{value: _price - fee}("");
+         require(sentToSeller, "Failed to send Ether to seller");
+        (bool sentFee, ) = payable(feeAddress).call{value: fee}("");
+         require(sentFee, "Failed to send Ether to Fee collector");
+    }
+
+    // This method required in case a Contract disable transfering for any reason!
+    // The token will stuck forever in the contract, only for emergency!
+    function emergencyCancelOrder(bytes32 _order) external onlyOwner nonReentrant{
+        Order storage o = orderInfo[_order];
+        address lastBidder = o.lastBidder;
+        uint256 lastBidPrice = o.lastBidPrice;
+        uint256 endBlock = o.endBlock + 1000; // At least 1000 block should passed, to avoid any backdoor
+        require(lastBidPrice != 0, "Bidding exist");
+        require(o.isSold == false, "Already sold");
+        require(o.isCancelled == false, "Already cancelled");
+        require(block.number >= endBlock, "Listing has ended");
+   
+        o.isCancelled = true;
+
+        IERC721 token = o.token;
+        uint256 tokenId = o.tokenId;
+        address seller = o.seller;
+
+        token.transferFrom(address(this), seller, tokenId);
+
+        (bool sent, ) = payable(lastBidder).call{value: lastBidPrice}("");
+
+        // In case bidder can't accept fund
+        if(!sent){
+            payable(feeAddress).transfer(lastBidPrice);
+        }
+    }
+
     function setFeeAddress(address _feeAddress) external onlyOwner {
+        require(_feeAddress != address(this), "Cannot be pointed self");
         feeAddress = _feeAddress;
     }
 
+    function setRoyaltyFee(IERC721 _token, uint16 _percent) external onlyOwner {
+        require(_percent >= 0, "Must be positive");
+        require(_percent <= 1000, "Input value is more than 10%");
+        royaltyFee[_token] = _percent;
+    }
+
     function updateFeePercent(uint16 _percent) external onlyOwner {
+        require(_percent >= 0, "Must be positive");
         require(_percent <= 1000, "Input value is more than 10%");
         feePercent = _percent;
     }
 
     function setExtendOnBid(uint16 _value) external onlyOwner {
+        require(_value >= 0, "Must be positive");
         require(_value <= 1000, "Cannot extend more than 1000 block");
         extendOnBid = _value;
+    }
+
+    // Function to receive Ether. msg.data must be empty
+    receive() external payable nonReentrant {
+        payable(feeAddress).transfer(msg.value);
+    }
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable nonReentrant {
+        payable(feeAddress).transfer(msg.value);
     }
 }

@@ -3,7 +3,7 @@
   "scripts": {
     "start": "hardhat",
     "test": "hardhat test",
-    "build": "npx hardhat flatten ./contracts/Marketplace.sol > ./build/Marketplace.sol"
+    "build": "npx hardhat flatten ./contracts/Marketplace.sol > ./build/Marketplace.sol && npx hardhat export-abi"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.0",
+    "hardhat-abi-exporter": "^2.10.1",
     "hardhat-gas-reporter": "^1.0.9"
   }
 }

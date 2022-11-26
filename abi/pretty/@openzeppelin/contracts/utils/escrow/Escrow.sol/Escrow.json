@@ -1,0 +1,11 @@
+[
+  "event Deposited(address indexed payee, uint256 weiAmount)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
+  "event Withdrawn(address indexed payee, uint256 weiAmount)",
+  "function deposit(address payee) payable",
+  "function depositsOf(address payee) view returns (uint256)",
+  "function owner() view returns (address)",
+  "function renounceOwnership()",
+  "function transferOwnership(address newOwner)",
+  "function withdraw(address payee)"
+]
