@@ -338,8 +338,18 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
    
         o.isCancelled = true;
 
+        IERC721 token = o.token;
+        uint256 tokenId = o.tokenId;
+        address seller = o.seller;
+
+        token.transferFrom(address(this), seller, tokenId);
+
         (bool sent, ) = payable(lastBidder).call{value: lastBidPrice}("");
-        require(sent, "Failed to send Ether on outbid");
+
+        // In case bidder can't accept fund
+        if(!sent){
+            payable(feeAddress).transfer(lastBidPrice);
+        }
     }
 
     function setFeeAddress(address _feeAddress) external onlyOwner {
