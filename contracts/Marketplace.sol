@@ -90,9 +90,11 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         return orderIdByToken[_token].length;
     }
 
-    function sellerOrderLength(
-        address _seller
-    ) external view returns (uint256) {
+    function sellerOrderLength(address _seller)
+        external
+        view
+        returns (uint256)
+    {
         return orderIdBySeller[_seller].length;
     }
 
@@ -341,7 +343,11 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         }
     }
 
-    function payFee(address _seller, uint256 _price, IERC721 _token) private {
+    function payFee(
+        address _seller,
+        uint256 _price,
+        IERC721 _token
+    ) private {
         uint256 fee = (_price * feePercent) / 10000;
 
         if (royaltyFee[_token] > 0) {
@@ -362,9 +368,11 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 
     // This method required in case a Contract disable transfering for any reason!
     // The token will stuck forever in the contract, only for emergency!
-    function emergencyCancelOrder(
-        bytes32 _order
-    ) external onlyOwner nonReentrant {
+    function emergencyCancelOrder(bytes32 _order)
+        external
+        onlyOwner
+        nonReentrant
+    {
         Order storage o = orderInfo[_order];
         address lastBidder = o.lastBidder;
         uint256 lastBidPrice = o.lastBidPrice;
