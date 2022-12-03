@@ -7,8 +7,7 @@ import "hardhat/console.sol";
 
 contract Token is ERC721("testToken", "tNFT") {
     function mint(address owner, uint256 id) public {
-
-         console.log("Mint %s for %s", id, owner);
+        console.log("Mint %s for %s", id, owner);
         _mint(owner, id);
     }
 }

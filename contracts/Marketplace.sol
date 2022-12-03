@@ -83,22 +83,16 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         } else {
             uint256 lastBidPrice = o.lastBidPrice;
             return lastBidPrice == 0 ? o.startPrice : lastBidPrice;
-        } 
+        }
     }
 
-    function tokenOrderLength(IERC721 _token)
-        public
-        view
-        returns (uint256)
-    {
+    function tokenOrderLength(IERC721 _token) public view returns (uint256) {
         return orderIdByToken[_token].length;
     }
 
-    function sellerOrderLength(address _seller)
-        external
-        view
-        returns (uint256)
-    {
+    function sellerOrderLength(
+        address _seller
+    ) external view returns (uint256) {
         return orderIdBySeller[_seller].length;
     }
 
@@ -132,7 +126,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         uint256 _price,
         uint256 _endBlock
     ) public {
-        _makeOrder(0, _token, _id, _price,  _endBlock);
+        _makeOrder(0, _token, _id, _price, _endBlock);
     } //ep=0. for gas saving.
 
     function auction(
@@ -143,8 +137,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
     ) public {
         _makeOrder(1, _token, _id, _startPrice, _endBlock);
     } //ep=0. for gas saving.
-
-
 
     function _makeOrder(
         uint8 _orderType,
@@ -203,7 +195,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
             require(
                 msg.value >= lastBidPrice + (lastBidPrice / 20), // 5%
                 "low price bid"
-            ); 
+            );
         } else {
             require(
                 msg.value >= o.startPrice && msg.value > 0,
@@ -240,7 +232,34 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         o.isSold = true; //reentrancy proof
 
         payFee(o.seller, currentPrice, o.token);
- 
+
+        o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
+
+        emit Claim(
+            o.token,
+            o.tokenId,
+            _order,
+            o.seller,
+            msg.sender,
+            currentPrice
+        );
+    }
+
+    function buyInternal(bytes32 _order) internal {
+        Order storage o = orderInfo[_order];
+        uint256 endBlock = o.endBlock;
+        require(block.number <= endBlock, "Listing has ended");
+        require(o.isCancelled == false, "Canceled order");
+        require(o.orderType == 0, "It's a English Auction");
+        require(o.isSold == false, "Already sold");
+
+        uint256 currentPrice = getCurrentPrice(_order);
+        require(msg.value == currentPrice, "Price error");
+
+        o.isSold = true; //reentrancy proof
+
+        payFee(o.seller, currentPrice, o.token);
+
         o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
 
         emit Claim(
@@ -286,6 +305,19 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         }
     }
 
+    function bulkBuy(bytes32[] memory _orders) external payable {
+        require(_orders.length > 0, "No orders to buy");
+        uint256 totalPrice = 0;
+        for (uint256 i = 0; i < _orders.length; i++) {
+            uint256 currentPrice = getCurrentPrice(_orders[i]);
+            totalPrice += currentPrice;
+        }
+        require(msg.value >= totalPrice, "Insufficient funds");
+        for (uint256 i = 0; i < _orders.length; i++) {
+            buyInternal(_orders[i]);
+        }
+    }
+
     function cancelOrder(bytes32 _order) public {
         Order storage o = orderInfo[_order];
         require(o.seller == msg.sender, "Access denied");
@@ -312,19 +344,27 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
     function payFee(address _seller, uint256 _price, IERC721 _token) private {
         uint256 fee = (_price * feePercent) / 10000;
 
-        if(royaltyFee[_token] > 0){
+        if (royaltyFee[_token] > 0) {
             fee = (_price * (feePercent + royaltyFee[_token])) / 10000;
         }
 
         (bool sentToSeller, ) = payable(_seller).call{value: _price - fee}("");
-         require(sentToSeller, "Failed to send Ether to seller");
-        (bool sentFee, ) = payable(feeAddress).call{value: fee}("");
-         require(sentFee, "Failed to send Ether to Fee collector");
+        if (!sentToSeller) {
+            // If the call to the seller failed, call the fee collector with the full payment amount
+            (bool sentFee, ) = payable(feeAddress).call{value: _price}("");
+            require(sentFee, "Failed to send Ether to Fee collector");
+        } else {
+            // If the call to the seller was successful, call the fee collector with just the fee amount
+            (bool sentFee, ) = payable(feeAddress).call{value: fee}("");
+            require(sentFee, "Failed to send Ether to Fee collector");
+        }
     }
 
     // This method required in case a Contract disable transfering for any reason!
     // The token will stuck forever in the contract, only for emergency!
-    function emergencyCancelOrder(bytes32 _order) external onlyOwner nonReentrant{
+    function emergencyCancelOrder(
+        bytes32 _order
+    ) external onlyOwner nonReentrant {
         Order storage o = orderInfo[_order];
         address lastBidder = o.lastBidder;
         uint256 lastBidPrice = o.lastBidPrice;
@@ -333,7 +373,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         require(o.isSold == false, "Already sold");
         require(o.isCancelled == false, "Already cancelled");
         require(block.number >= endBlock, "Listing has ended");
-   
+
         o.isCancelled = true;
 
         IERC721 token = o.token;
@@ -345,7 +385,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
         (bool sent, ) = payable(lastBidder).call{value: lastBidPrice}("");
 
         // In case bidder can't accept fund
-        if(!sent){
+        if (!sent) {
             payable(feeAddress).transfer(lastBidPrice);
         }
     }
