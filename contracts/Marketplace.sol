@@ -62,6 +62,65 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		feePercent = 100; // Fee 1%
 	}
 
+	function bulkViewCollectionOrders(
+		IERC721 _token,
+		uint256 _fromIndex,
+		uint16 _limit
+	) public view returns (Order[] memory) {
+		// Create an empty array to hold the order information
+		Order[] memory orders = new Order[](_limit);
+
+		// Iterate through the array of order IDs for the given ERC721 token
+		for (
+			uint256 i = _fromIndex;
+			i < orderIdByToken[_token].length && i < (_fromIndex + _limit);
+			i++
+		) {
+			// Get the order ID for the current iteration
+			bytes32 orderId = orderIdByToken[_token][i];
+
+			// Get the order information for the current order ID
+			Order memory order = orderInfo[orderId];
+
+			// Add the order information to the array of orders
+			orders[i] = order;
+		}
+
+		// Return the array of orders
+		return orders;
+	}
+
+	function bulkViewSellerOrders(
+		address _seller,
+		uint256 _fromIndex,
+		uint16 _limit
+	) public view returns (Order[] memory) {
+		// Create an empty array to hold the order information
+		Order[] memory orders = new Order[](_limit);
+
+		// Get the number of orders made by the seller
+		uint256 sellerOrderCount = orderIdBySeller[_seller].length;
+
+		// Iterate through the array of order IDs for the seller
+		for (
+			uint256 i = _fromIndex;
+			i < sellerOrderCount && i < (_fromIndex + _limit);
+			i++
+		) {
+			// Get the order ID for the current iteration
+			bytes32 orderId = orderIdBySeller[_seller][i];
+
+			// Get the order information for the current order ID
+			Order memory order = orderInfo[orderId];
+
+			// Add the order information to the array of orders
+			orders[i] = order;
+		}
+
+		// Return the array of orders
+		return orders;
+	}
+
 	function tokenOrderLength(IERC721 _token) public view returns (uint256) {
 		return orderIdByToken[_token].length;
 	}

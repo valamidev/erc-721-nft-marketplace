@@ -212,4 +212,50 @@ describe.only("Marketplace", function () {
       expect(balanceAfterBuy.sub(balanceBeforeBuy)).to.equal(10 ** 5);
     });
   });
+
+  describe("View Functions", function () {
+    it("Return Orders by collection", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+      await nftToken.connect(account2).approve(marketplace.address, 11);
+
+      await marketplace
+        .connect(account1)
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+
+      await marketplace
+        .connect(account2)
+        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+
+      const orders = await marketplace
+        .connect(owner)
+        .bulkViewCollectionOrders(nftToken.address, 0, 3);
+
+      expect(orders).to.have.length(3);
+    });
+
+    it("Return Orders by collection", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+      await nftToken.connect(account2).approve(marketplace.address, 11);
+
+      await marketplace
+        .connect(account1)
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+
+      await marketplace
+        .connect(account2)
+        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+
+      const orders = await marketplace
+        .connect(owner)
+        .bulkViewSellerOrders(account1.address, 0, 3);
+
+      expect(orders).to.have.length(3);
+    });
+  });
 });
