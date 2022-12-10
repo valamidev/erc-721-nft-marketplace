@@ -162,8 +162,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		require(o.isCancelled == false, "Canceled order");
 		require(o.isSold == false, "Already sold");
 
-		require(msg.value == o.listPrice, "Price error");
-
 		o.isSold = true; //reentrancy proof
 
 		payFee(o.seller, o.listPrice, o.token);

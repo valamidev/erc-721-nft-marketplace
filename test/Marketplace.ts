@@ -89,28 +89,28 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 5 ** 10, 350);
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
 
       const hash1 = _hash(nftToken.address, 1, account1.address, 9);
 
       await marketplace
         .connect(account2)
-        .fixedPrice(nftToken.address, 11, 6 ** 10, 350);
+        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
 
       const hash2 = _hash(nftToken.address, 11, account2.address, 10);
 
       const getOrder1 = await marketplace.orderInfo(hash1);
       const getOrder2 = await marketplace.orderInfo(hash2);
 
-      expect(getOrder1.listPrice).to.equal(5 ** 10);
-      expect(getOrder2.listPrice).to.equal(6 ** 10);
+      expect(getOrder1.listPrice).to.equal(10 ** 5);
+      expect(getOrder2.listPrice).to.equal(10 ** 6);
 
       expect(getOrder1.seller).to.equal(account1.address);
       expect(getOrder2.seller).to.equal(account2.address);
     });
   });
 
-  describe("Royalty Fees", function () {
+  describe("Buy Orders", function () {
     it("Deduct Royalty fee", async function () {
       const { marketplace, nftToken, owner, account1, account2 } =
         await loadFixture(deployContract);
@@ -133,6 +133,56 @@ describe.only("Marketplace", function () {
       const balanceAfterBuy = await account1.getBalance();
 
       expect(balanceAfterBuy.sub(balanceBeforeBuy)).to.equal(10 ** 5 * 0.9);
+    });
+    it("BulkBuy orders", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+      await nftToken.connect(account2).approve(marketplace.address, 11);
+
+      await marketplace
+        .connect(account1)
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+
+      const hash1 = _hash(nftToken.address, 1, account1.address, 9);
+
+      await marketplace
+        .connect(account2)
+        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+
+      const hash2 = _hash(nftToken.address, 11, account2.address, 10);
+
+      await marketplace
+        .connect(owner)
+        .bulkBuy([hash1, hash2], { value: 10 ** 5 + 10 ** 6 });
+
+      expect(await nftToken.connect(owner).ownerOf(1)).to.equal(owner.address);
+      expect(await nftToken.connect(owner).ownerOf(11)).to.equal(owner.address);
+    });
+
+    it("BulkBuy orders, re-entry", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+      await nftToken.connect(account2).approve(marketplace.address, 11);
+
+      await marketplace
+        .connect(account1)
+        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+
+      const hash1 = _hash(nftToken.address, 1, account1.address, 9);
+
+      await marketplace
+        .connect(account2)
+        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+
+      await expect(
+        marketplace
+          .connect(owner)
+          .bulkBuy([hash1, hash1], { value: 10 ** 5 + 10 ** 6 })
+      ).to.be.revertedWith("Already sold");
     });
   });
 
