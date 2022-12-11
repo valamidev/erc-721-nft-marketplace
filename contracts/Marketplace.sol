@@ -63,6 +63,21 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		feePercent = 100; // Fee 1%
 	}
 
+	function bulkViewListedTokens(
+		uint256 _fromIndex,
+		uint16 _limit
+	) public view returns (IERC721[] memory) {
+		IERC721[] memory result = new IERC721[](_limit);
+		for (
+			uint256 i = _fromIndex;
+			i < listedTokens.length && i < (_fromIndex + _limit);
+			i++
+		) {
+			result[i] = listedTokens[i];
+		}
+		return result;
+	}
+
 	function bulkViewCollectionOrders(
 		IERC721 _token,
 		uint256 _fromIndex,
