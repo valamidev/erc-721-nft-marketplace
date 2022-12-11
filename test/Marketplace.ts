@@ -80,7 +80,7 @@ describe.only("Marketplace", function () {
   });
 
   describe("Create Item listing", function () {
-    it("Create fixedPrice Listing", async function () {
+    it("Create singleCreateListing Listing", async function () {
       const { marketplace, nftToken, owner, account1, account2 } =
         await loadFixture(deployContract);
 
@@ -89,13 +89,13 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       const hash1 = _hash(nftToken.address, 1, account1.address, 9);
 
       await marketplace
         .connect(account2)
-        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+        .singleCreateListing(nftToken.address, 11, 10 ** 6, 350);
 
       const hash2 = _hash(nftToken.address, 11, account2.address, 10);
 
@@ -120,7 +120,7 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       const orderHash = _hash(nftToken.address, 1, account1.address, 8);
 
@@ -143,13 +143,13 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       const hash1 = _hash(nftToken.address, 1, account1.address, 9);
 
       await marketplace
         .connect(account2)
-        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+        .singleCreateListing(nftToken.address, 11, 10 ** 6, 350);
 
       const hash2 = _hash(nftToken.address, 11, account2.address, 10);
 
@@ -170,13 +170,13 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       const hash1 = _hash(nftToken.address, 1, account1.address, 9);
 
       await marketplace
         .connect(account2)
-        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+        .singleCreateListing(nftToken.address, 11, 10 ** 6, 350);
 
       await expect(
         marketplace
@@ -196,7 +196,7 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       const orderHash = _hash(nftToken.address, 1, account1.address, 8);
 
@@ -223,11 +223,11 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       await marketplace
         .connect(account2)
-        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+        .singleCreateListing(nftToken.address, 11, 10 ** 6, 350);
 
       const orders = await marketplace
         .connect(owner)
@@ -245,11 +245,11 @@ describe.only("Marketplace", function () {
 
       await marketplace
         .connect(account1)
-        .fixedPrice(nftToken.address, 1, 10 ** 5, 350);
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
 
       await marketplace
         .connect(account2)
-        .fixedPrice(nftToken.address, 11, 10 ** 6, 350);
+        .singleCreateListing(nftToken.address, 11, 10 ** 6, 350);
 
       const orders = await marketplace
         .connect(owner)

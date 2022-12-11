@@ -131,7 +131,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		return orderIdBySeller[_seller].length;
 	}
 
-	function bulkList(
+	function bulkCreateListing(
 		IERC721 _token,
 		uint256[] memory _ids,
 		uint256 _listPrice,
@@ -140,20 +140,20 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		require(_ids.length > 0, "At least 1 ID must be supplied");
 
 		for (uint256 i = 0; i < _ids.length; i++) {
-			_makeOrder(_token, _ids[i], _listPrice, _endBlock);
+			_makeListing(_token, _ids[i], _listPrice, _endBlock);
 		}
 	}
 
-	function fixedPrice(
+	function singleCreateListing(
 		IERC721 _token,
 		uint256 _id,
 		uint256 _price,
 		uint256 _endBlock
 	) public {
-		_makeOrder(_token, _id, _price, _endBlock);
-	} //ep=0. for gas saving.
+		_makeListing(_token, _id, _price, _endBlock);
+	}
 
-	function _makeOrder(
+	function _makeListing(
 		IERC721 _token,
 		uint256 _id,
 		uint256 _listPrice,
