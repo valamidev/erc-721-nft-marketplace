@@ -1,5 +1,33 @@
 // Sources flattened with hardhat v2.12.2 https://hardhat.org
 
+// File @openzeppelin/contracts/utils/Context.sol@v4.8.0
+
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+
 // File @openzeppelin/contracts/security/ReentrancyGuard.sol@v4.8.0
 
 // SPDX-License-Identifier: MIT
@@ -69,34 +97,6 @@ abstract contract ReentrancyGuard {
         // By storing the original value once again, a refund is triggered (see
         // https://eips.ethereum.org/EIPS/eip-2200)
         _status = _NOT_ENTERED;
-    }
-}
-
-
-// File @openzeppelin/contracts/utils/Context.sol@v4.8.0
-
-// SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
     }
 }
 
@@ -446,6 +446,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 	mapping(IERC721 => uint16) public royaltyFee;
 	mapping(bytes32 => Order) public orderInfo;
 
+	IERC721[] public listedTokens;
 	address public feeAddress;
 	uint16 public feePercent;
 
@@ -473,6 +474,21 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 	constructor() {
 		feeAddress = msg.sender;
 		feePercent = 100; // Fee 1%
+	}
+
+	function bulkViewListedTokens(
+		uint256 _fromIndex,
+		uint16 _limit
+	) public view returns (IERC721[] memory) {
+		IERC721[] memory result = new IERC721[](_limit);
+		for (
+			uint256 i = _fromIndex;
+			i < listedTokens.length && i < (_fromIndex + _limit);
+			i++
+		) {
+			result[i] = listedTokens[i];
+		}
+		return result;
 	}
 
 	function bulkViewCollectionOrders(
@@ -544,7 +560,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		return orderIdBySeller[_seller].length;
 	}
 
-	function bulkList(
+	function bulkCreateListing(
 		IERC721 _token,
 		uint256[] memory _ids,
 		uint256 _listPrice,
@@ -553,20 +569,20 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		require(_ids.length > 0, "At least 1 ID must be supplied");
 
 		for (uint256 i = 0; i < _ids.length; i++) {
-			_makeOrder(_token, _ids[i], _listPrice, _endBlock);
+			_makeListing(_token, _ids[i], _listPrice, _endBlock);
 		}
 	}
 
-	function fixedPrice(
+	function singleCreateListing(
 		IERC721 _token,
 		uint256 _id,
 		uint256 _price,
 		uint256 _endBlock
 	) public {
-		_makeOrder(_token, _id, _price, _endBlock);
-	} //ep=0. for gas saving.
+		_makeListing(_token, _id, _price, _endBlock);
+	}
 
-	function _makeOrder(
+	function _makeListing(
 		IERC721 _token,
 		uint256 _id,
 		uint256 _listPrice,
@@ -585,6 +601,12 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 			false,
 			false
 		);
+
+		// Create at first listing
+		if (orderIdByToken[_token].length == 0) {
+			listedTokens.push(_token);
+		}
+
 		orderIdByToken[_token].push(hash);
 		orderIdBySeller[msg.sender].push(hash);
 
