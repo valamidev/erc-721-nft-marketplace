@@ -33,6 +33,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 	mapping(IERC721 => uint16) public royaltyFee;
 	mapping(bytes32 => Order) public orderInfo;
 
+	IERC721[] public listedTokens;
 	address public feeAddress;
 	uint16 public feePercent;
 
@@ -172,6 +173,12 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 			false,
 			false
 		);
+
+		// Create at first listing
+		if (orderIdByToken[_token].length == 0) {
+			listedTokens.push(_token);
+		}
+
 		orderIdByToken[_token].push(hash);
 		orderIdBySeller[msg.sender].push(hash);
 
