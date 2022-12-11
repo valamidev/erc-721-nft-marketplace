@@ -257,5 +257,27 @@ describe.only("Marketplace", function () {
 
       expect(orders).to.have.length(3);
     });
+
+    it("Return listed Collections", async function () {
+      const { marketplace, nftToken, owner, account1, account2 } =
+        await loadFixture(deployContract);
+
+      await nftToken.connect(account1).approve(marketplace.address, 1);
+      await nftToken.connect(account2).approve(marketplace.address, 11);
+
+      await marketplace
+        .connect(account1)
+        .singleCreateListing(nftToken.address, 1, 10 ** 5, 350);
+
+      await marketplace
+        .connect(account2)
+        .singleCreateListing(nftToken.address, 11, 10 ** 6, 350);
+
+      const listedCollections = await marketplace
+        .connect(owner)
+        .bulkViewListedTokens(0, 3);
+
+      expect(listedCollections[0]).to.equal(nftToken.address);
+    });
   });
 });
