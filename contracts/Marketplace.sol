@@ -14,9 +14,6 @@ import "@openzeppelin/contracts/utils/Context.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// License to
-// https://github.com/TheGreatHB/NFTEX/blob/main/contracts/NFTEX.sol
-
 contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 	struct Order {
 		address seller;
