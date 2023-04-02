@@ -173,6 +173,10 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 		uint256 _endBlock
 	) internal nonReentrant {
 		require(_endBlock > block.number, "Duration must be more than zero");
+		require(
+			_token.getApproved(_id) == address(this),
+			"Contract not approved to transfer token"
+		);
 
 		//push
 		bytes32 hash = _hash(_token, _id, msg.sender);
@@ -193,9 +197,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 
 		orderIdByToken[_token].push(hash);
 		orderIdBySeller[msg.sender].push(hash);
-
-		//check if seller has a right to transfer the NFT token. safeTransferFrom.
-		_token.safeTransferFrom(msg.sender, address(this), _id);
 
 		emit MakeOrder(_token, _id, hash, msg.sender);
 	}
@@ -221,7 +222,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 
 		payFee(o.seller, o.listPrice, o.token);
 
-		o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
+		o.token.safeTransferFrom(o.seller, msg.sender, o.tokenId);
 
 		emit BuyOrder(
 			o.token,
@@ -244,7 +245,7 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 
 		payFee(o.seller, o.listPrice, o.token);
 
-		o.token.safeTransferFrom(address(this), msg.sender, o.tokenId);
+		o.token.safeTransferFrom(o.seller, msg.sender, o.tokenId);
 
 		emit BuyOrder(
 			o.token,
@@ -280,7 +281,6 @@ contract RarityHeadMarketplace is ERC721Holder, Ownable, ReentrancyGuard {
 
 		o.isCancelled = true;
 
-		token.safeTransferFrom(address(this), msg.sender, tokenId);
 		emit CancelOrder(token, tokenId, _order, msg.sender);
 	}
 
