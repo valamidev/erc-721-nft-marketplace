@@ -1,21 +1,10 @@
-# Sample Hardhat Project
-
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.ts
+# Simple Erc-721 Marketplace writen in Solidity (Not audited*)
+```
+- Designed to working with DAPP only mode (no indexers are needed to track listings / prices)
+- Allow bulk-listing
+- Allow bulk-buy (sweeping)
+- Allow custom royality % for collections
+- Gas optimized
 ```
 
-Deployed
-
-```
-
-Doge Testnet => 0x0aa2037E40a78A169B5214418D66377ab828cb23
-
-```
+##### * This project is not audited, use it for your own risk.
