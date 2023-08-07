@@ -1,4 +1,4 @@
-# Erc-721 Marketplace writen in Solidity (Not audited*)
+# Erc-721 Marketplace writen in Solidity*
 ```
 - Writen in Solidity 0.8.7 with @openzeppelin dependencies
 - Designed to working with DAPP only mode (no indexers are needed to track listings / prices)
